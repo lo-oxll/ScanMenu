@@ -4,12 +4,6 @@
   let d;
   try { d = await App.load(); } catch { document.body.textContent = "تعذّر تحميل البيانات."; return; }
   App.theme(d);
-  if (!d.cashierHash) {
-    $("#app").hidden = false;
-    $("#app").innerHTML = '<p class="card" style="margin:16px">لم تُعيَّن كلمة سر للكاشير. عيّنها من لوحة المدير ثم ارفع data.json.</p>';
-    return;
-  }
-  await App.gate(d.cashierHash, "دخول الكاشير");
   $("#app").hidden = false;
   $("#title").textContent = "الكاشير — " + (d.name || "");
 

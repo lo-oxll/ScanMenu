@@ -110,7 +110,7 @@
     out.categories = out.categories.map((c) => ({ ...c, items: c.items.filter((i) => String(i.name).trim()) })).filter((c) => String(c.name).trim());
     const ids = out.categories.flatMap((c) => c.items.map((i) => i.id));
     if (new Set(ids).size !== ids.length) throw new Error("معرّفات الوجبات مكررة في data.json.");
-    for (const [id, key] of [["#pwC", "cashierHash"], ["#pwA", "adminHash"]]) {
+    for (const [id, key] of [["#pwA", "adminHash"]]) {
       const v = $(id).value;
       if (!v) continue;
       if (v.length < 8) throw new Error("كلمة السر 8 أحرف على الأقل.");
