@@ -44,6 +44,16 @@
     const s = $("#status"); s.hidden = false; s.className = "status " + (open ? "open" : "closed"); s.textContent = open ? "مفتوح الآن" : "مغلق الآن";
   }
 
+  let taps = 0, first = 0, timer;
+  logo.addEventListener("click", () => {
+    const now = Date.now();
+    if (!taps || now - first > 2000) { taps = 0; first = now; }
+    taps++;
+    clearTimeout(timer);
+    if (taps >= 5) { taps = 0; location.href = "admin.html"; return; }
+    timer = setTimeout(() => { if (taps === 3) location.href = "cashier.html"; taps = 0; }, 700);
+  });
+
   $("#share").onclick = async () => {
     try { if (navigator.share) await navigator.share({ title: name, url: location.href }); else { await navigator.clipboard.writeText(location.href); App.toast("تم نسخ الرابط"); } } catch { /* أُلغيت المشاركة */ }
   };
