@@ -436,6 +436,6 @@
   },
   "minOrder": 3000,
   "ordersUrl": "",
-  "cashierHash": "1cb0ac6edc556e86:e53c83e25fb753e28ab174bc01db07246200751b054c1f388e4586656d0e11ec",
-  "adminHash": "5edf41d80a2774ce:f5ec8e72ff8f7fb91506b6534abf0ae0412603ce82aed240c8f6b3cef2fc1374"
+  "cashierHash": "",
+  "adminHash": ""
 }
