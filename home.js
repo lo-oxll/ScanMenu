@@ -66,9 +66,4 @@
     const s = $("#status"); s.hidden = false; s.className = "status " + (open ? "open" : "closed"); s.textContent = open ? "مفتوح الآن" : "مغلق الآن";
   }
 
-  // الوجبات في الواجهة (للعرض؛ الطلب من صفحة القائمة)
-  $("#meals").innerHTML = (d.categories || []).filter((c) => c.items && c.items.length).map((c) =>
-    `<section><h2><a href="menu.html#c-${esc(c.id)}">${esc(c.name)}</a></h2>` + c.items.map((i) =>
-      `<article class="item">${i.img ? `<img class="pic" src="${esc(i.img)}" alt="${esc(i.name)}" loading="lazy" width="96" height="96">` : ""}` +
-      `<div class="info"><h3>${esc(i.name)}</h3>${i.desc ? `<p>${esc(i.desc)}</p>` : ""}<div class="row"><span class="price">${App.fmt(Number.isFinite(i.price) && i.price > 0 ? i.price : null)}</span></div></div></article>`).join("") + "</section>").join("");
 })();

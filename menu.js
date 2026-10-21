@@ -6,8 +6,8 @@
   App.theme(d);
   const esc = App.esc, fmt = App.fmt;
   $("#name").textContent = d.name || "المنيو";
-  document.title = "المنيو — " + (d.name || "");
-  if (d.minOrder) $("#foot").textContent = "الحد الأدنى للطلب السفري " + Number(d.minOrder).toLocaleString("en-US") + " د.ع";
+  if ($("#q")) document.title = "المنيو — " + (d.name || "");
+  if (d.minOrder && $("#foot")) $("#foot").textContent = "الحد الأدنى للطلب السفري " + Number(d.minOrder).toLocaleString("en-US") + " د.ع";
 
   const cats = (d.categories || []).filter((c) => c.items && c.items.length);
   const byId = new Map(), cart = new Map();
@@ -15,6 +15,7 @@
   const orderable = (i) => Number.isFinite(i.price) && i.price > 0;
   const total = () => [...cart.values()].reduce((s, x) => s + x.p * x.q, 0);
   const count = () => [...cart.values()].reduce((s, x) => s + x.q, 0);
+  const qv = () => ($("#q") ? $("#q").value : "");
   const norm = (s) => String(s).replace(/[\u064B-\u0652]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").toLowerCase();
 
   const ctl = (id) => {
@@ -37,13 +38,14 @@
         `<div class="row"><span class="price">${fmt(orderable(i) ? i.price : null)}</span>${orderable(i) ? `<span class="ctl" data-c="${esc(i.id)}">${ctl(i.id)}</span>` : ""}</div></div></article>`
       ).join("") + "</section>";
     }
-    $("#tabs").innerHTML = tabs;
+    if ($("#tabs")) $("#tabs").innerHTML = tabs;
     $("#menu").innerHTML = html || '<p class="none">لا توجد نتائج مطابقة.</p>';
     observe();
   }
 
   let io;
   function observe() {
+    if (!$("#tabs")) return;
     if (io) io.disconnect();
     io = new IntersectionObserver((es) => {
       for (const e of es) {
@@ -102,7 +104,7 @@
   $("#doneClose").onclick = () => sheet.close();
   sheet.addEventListener("click", (e) => { if (e.target === sheet) sheet.close(); });
   sheet.addEventListener("close", () => {
-    if (!$("#done").hidden) { cart.clear(); render($("#q").value); bar(); }
+    if (!$("#done").hidden) { cart.clear(); render(qv()); bar(); }
     $("#form").hidden = false; $("#done").hidden = true; $("#send").disabled = false;
   });
 
@@ -137,7 +139,7 @@
       : ok ? "وصل طلبك إلى الكاشير. اضغط الزر لإرساله أيضاً عبر واتساب." : "تعذّر الإرسال إلى الكاشير. أرسل الطلب عبر واتساب.";
   };
 
-  $("#q").addEventListener("input", () => render($("#q").value));
+  if ($("#q")) $("#q").addEventListener("input", () => render(qv()));
   render();
   if (location.hash) { const t = document.getElementById(decodeURIComponent(location.hash.slice(1))); if (t) t.scrollIntoView(); }
 })();
