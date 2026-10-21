@@ -2,163 +2,58 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>منيو فرايد تشكين</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
-<style>
-:root{
-  --red:#b3202a; --red-dark:#8a1720; --yellow:#f4b400;
-  --bg:#fff; --surface:#f7f5f3; --text:#231f20; --muted:#6b6465; --line:#e6e0dd;
-}
-@media (prefers-color-scheme:dark){
-  :root{--bg:#171415; --surface:#231e1f; --text:#f3eeee; --muted:#a79d9e; --line:#352e2f; --red:#e04652}
-}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth;scroll-padding-top:128px}
-body{margin:0;font-family:"Cairo",system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
-.top{background:var(--red);color:#fff;padding:20px 16px 16px;text-align:center}
-.top h1{margin:0;font-size:2rem;font-weight:800}
-.top p{margin:2px 0 14px;opacity:.9;font-size:.95rem}
-#q{width:100%;max-width:520px;padding:11px 16px;border:0;border-radius:10px;font:inherit;background:#fff;color:#231f20}
-#q:focus-visible{outline:3px solid var(--yellow)}
-#tabs{position:sticky;top:0;z-index:5;display:flex;gap:6px;overflow-x:auto;padding:10px 12px;background:var(--bg);border-bottom:1px solid var(--line);scrollbar-width:none}
-#tabs::-webkit-scrollbar{display:none}
-#tabs a{flex:none;padding:6px 14px;border-radius:20px;color:var(--muted);text-decoration:none;font-weight:600;font-size:.95rem}
-#tabs a.on{background:var(--yellow);color:#231f20}
-#tabs a:focus-visible{outline:2px solid var(--red)}
-main{max-width:720px;margin:0 auto;padding:8px 16px 32px}
-section h2{margin:28px 0 4px;font-size:1.5rem;font-weight:800;color:var(--red)}
-.item{display:grid;grid-template-columns:1fr auto;gap:2px 16px;padding:14px 0;border-bottom:1px solid var(--line)}
-.item h3{margin:0;font-size:1.05rem;font-weight:600}
-.item p{grid-column:1;margin:0;color:var(--muted);font-size:.9rem}
-.price{grid-row:1/span 2;grid-column:2;align-self:center;font-weight:800;white-space:nowrap;background:var(--surface);padding:4px 12px;border-radius:8px}
-.price small{font-weight:400;color:var(--muted);margin-inline-start:3px}
-.none{text-align:center;color:var(--muted);padding:40px 0}
-footer{text-align:center;color:var(--muted);padding:20px;border-top:1px solid var(--line);font-size:.9rem}
-</style>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https:; connect-src 'self' https://*.firebasedatabase.app https://*.firebaseio.com; base-uri 'none'; form-action 'none'">
+<meta name="theme-color" content="#c8102e">
+<title>المنيو</title>
+<link rel="stylesheet" href="fonts/cairo.css">
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <header class="top">
-  <h1>فرايد تشكين</h1>
-  <p>المنيو الإلكتروني · الأسعار بالدينار العراقي</p>
+  <h1 id="name">المنيو</h1>
+  <p>اختر وجباتك واطلب · الأسعار بالدينار العراقي</p>
   <input id="q" type="search" placeholder="ابحث عن وجبة أو صنف" aria-label="بحث">
 </header>
 <nav id="tabs" aria-label="الأقسام"></nav>
-<main id="menu"></main>
-<footer>الحد الأدنى للطلب 3000 د.ع</footer>
-<script>
-// بيانات المنيو — عدّل الأسعار والأصناف من هنا فقط (السعر بالدينار العراقي)
-const MENU = [
-  { id: "meals", name: "الوجبات", items: [
-    ["وجبة كرسبي ميني", "2 قطع دجاج مقرمش، صمون، سلطة كول سلو، علبة بطاطا مقلية، ثومية وكوكاكولا.", 7500],
-    ["وجبة كرسبي", "3 قطع دجاج مقرمش، صمون، سلطة كول سلو، علبة بطاطا مقلية، ثومية وكوكاكولا.", 9000],
-    ["وجبة ستربس", "5 قطع دجاج ستربس، صمون، سلطة كول سلو، علبة بطاطا مقلية، ثومية وكوكاكولا.", 9000],
-    ["وجبة كرسبي عائلية", "10 قطع دجاج مقرمش، صمون، 3 سلطة كول سلو، علبة بطاطا مقلية، 3 ثومية وكوكاكولا عائلي.", 25000],
-    ["وجبة ستربس عائلي", "15 قطعة ستربس، علبة بطاطا حجم عائلي، 3 علب كول سلو، 3 علب صلصة ثوم، 10 قطع صمون، علبة كولا عائلي.", 25000],
-    ["وجبة كرسبي جامبو", "14 قطع دجاج مقرمش، صمون، 4 سلطة كول سلو، علبة بطاطا مقلية، 4 ثومية وكوكاكولا عائلي.", 35000],
-    ["وجبة كرسبي و ستربس", "2 قطع دجاج مقرمش، 3 قطع دجاج ستربس، صمون، سلطة كول سلو، بطاطا مقلية، ثومية وكوكاكولا.", 10000],
-    ["وجبة طفل صبي", "قطعة كرسبي، قطعة ستربس، بطاطا مقلية، عصير.", 6000],
-    ["وجبة طفل بنت", "قطعة كرسبي، قطعة ستربس، بطاطا مقلية، عصير.", 6000]
-  ]},
-  { id: "sandwiches", name: "السندويتشات", items: [
-    ["سندويتش بيك ليفل", "قطع دجاج مقرمشة، خس، حبش مدخن وصوص.", 6500],
-    ["سندويتش بيك ليفل إكسترا", "2 قطع صدور دجاج مقرمشة، خس وصوص.", 8500],
-    ["سندويتش سيكرت", "دجاج مقرمش، خس، جبنة سويسرية وصوص سيكرت.", null],
-    ["سندويتش ريد هوت", "دجاج مقرمش، خس، جبنة شيدر وصوص سبايسي.", 6000],
-    ["سندويتش كلاسيك دائري", "خبز فرنسي، صدر دجاج مقرمش، خس، جبنة سويس وصلصة المايونيز.", 6000],
-    ["سندويتش تويستر فيليه", "خبز التورتيلا، قطع دجاج مقرمشة، خس، جبنة شيدر وصلصة فرايد تشكن.", 5000],
-    ["سندويش كرسبي فيليه", "قطع دجاج مقرمشة، خس، جبنة شيدر وصوص دجاج مقلي.", 6000]
-  ]},
-  { id: "rizo", name: "الريزو", items: [
-    ["ريزو كلاسيك", "رز اصفر، قطع دجاج مقرمش وصلصة كلاسيك.", 4000],
-    ["ريزو أورجينال", "رز اصفر، قطع دجاج مقرمش وصلصة اورجنال.", 4000],
-    ["ريزو سبايسي", "رز اصفر، قطع دجاج مقرمش وصلصة سبايسي.", 4000],
-    ["ريزو اعشاب", "رز اصفر، قطع دجاج مقرمش وصلصة الاعشاب.", 4000],
-    ["ريزو سموكي", "رز احمر، قطع دجاج مقرمش وصلصة مدخنة.", 4000]
-  ]},
-  { id: "salad", name: "السلطة", items: [
-    ["سلطة سيزر دجاج", "قطع دجاج، خس، خبز محمص، جبنة بارميزان وصوص رانتش.", 5000],
-    ["علبة سلطة كول سلو", "لهانة، جزر ومايونيز.", 500]
-  ]},
-  { id: "sides", name: "الأطباق الجانبية", items: [
-    ["اجنحة بصلصة الباربيكيو", "8 قطع أجنحة دجاج مع صلصة الباربيكيو.", 6000],
-    ["اجنحة بصلصة البافلو", "8 قطع أجنحة دجاج مع صلصة بافلو.", 6000],
-    ["اجنحة بصلصة هني ماسترد", "8 قطع أجنحة دجاج مع صلصة هني ماسترد.", 6000],
-    ["بطاطا ودجز", "بطاطا ودجز مقلية.", 3000],
-    ["حلقات بصل مقرمش", "10 قطع من حلقات البصل المقرمشة.", 3000],
-    ["قطعة ستربس", "1 قطعة شرائح دجاج مقلية.", 1500],
-    ["قطعة كرسبي", "1 قطعة دجاج مقلي مقرمش.", 2500],
-    ["بوب كورن دجاج", "قطع دجاج مقرمشة مقلية.", 3000],
-    ["ناجتس دجاج", "5 قطع.", 3000],
-    ["علبة بطاطا مقلية", "اصابع البطاطا المقلية.", 2000],
-    ["علبة بطاطا مقلية عائلية", "اصابع البطاطا المقلية.", 3500],
-    ["صمون فرنسي", "6 قطع.", 1000],
-    ["رز اصفر", "طبق رز.", 3000],
-    ["رز سموكي", "طبق رز.", 3000]
-  ]},
-  { id: "starters", name: "المقبلات", items: [
-    ["علبة مقبلات", "نوع واحد من المقبلات: حمص بطحينة أو الباذنجانية أو السلطة الروسية.", 2000],
-    ["3 علب مقبلات مشكلة", "حمص، باذنجانية وسلطة روسية.", 5000]
-  ]},
-  { id: "sauces", name: "الصوصات", items: [
-    ["صوص كولدن بز", "Golden sauce", 1000],
-    ["ثومية", "ثوم، مايونيز، ليمون، ملح وفلفل أسود.", 500],
-    ["صوص رانش", "مايونيز، حليب، ملح، ثوم، بصل، خردل، اعشاب وتوابل.", 1000],
-    ["صوص جبنة", "مزيج غني وكريمي من جبنة الموزريلا، جبنة التشيدر، الحليب، الزبدة والتوابل.", 1000],
-    ["صوص باربيكيو", "كاتشب، خل، سكر، صلصة رسيستيرشاير، فلفل حار وثوم.", 1000],
-    ["صوص فلفل حار حلو", "الفلفل الحار، السكر، الخل، الثوم والزنجبيل.", 1000],
-    ["صوص هني ماستر", "", 1000]
-  ]},
-  { id: "sweets", name: "الحلويات", items: [
-    ["كوكيز", "قطعة كوكيز لذيذة.", 2000],
-    ["كوكيز شوكولاتة", "قطعة كوكيز الشوكولاتة اللذيذة.", 2000]
-  ]},
-  { id: "drinks", name: "المشروبات", items: [
-    ["علبة كوكاكولا", "مشروب غازي لذيذ.", 750],
-    ["كوكاكولا عائلي", "مشروب غازي لذيذ.", 1500]
-  ]}
-];
+<main class="menu" id="menu"></main>
+<footer id="foot"></footer>
 
-const menuEl = document.getElementById("menu");
-const tabsEl = document.getElementById("tabs");
-const qEl = document.getElementById("q");
+<button class="btn" id="bar" type="button" hidden>
+  <span id="barN"></span><span>عرض السلة</span><span id="barT"></span>
+</button>
 
-const fmt = (n) => (n == null ? "اسأل عن السعر" : n.toLocaleString("en-US"));
-const norm = (s) => s.replace(/[\u064B-\u0652]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").toLowerCase();
+<dialog id="sheet" aria-label="السلة">
+  <div class="sheet" id="form">
+    <h2>سلتك</h2>
+    <div id="lines"></div>
+    <div class="seg" role="group" aria-label="نوع الطلب">
+      <button type="button" data-t="hall" aria-pressed="true">في الصالة</button>
+      <button type="button" data-t="out" aria-pressed="false">سفري</button>
+    </div>
+    <div id="tableBox">
+      <label for="table">رقم الطاولة</label>
+      <input id="table" type="number" inputmode="numeric" min="1" max="999" placeholder="مثال: 5">
+    </div>
+    <div>
+      <label for="note">ملاحظات (اختياري)</label>
+      <textarea id="note" maxlength="200"></textarea>
+    </div>
+    <div class="tot"><span>المجموع</span><span id="total"></span></div>
+    <p class="msg" id="err" role="alert"></p>
+    <button class="btn block" id="send" type="button"></button>
+    <button class="btn ghost block" id="close" type="button">متابعة الاختيار</button>
+  </div>
+  <div class="sheet" id="done" hidden>
+    <h2>تم استلام طلبك</h2>
+    <div class="big" id="doneNum"></div>
+    <p id="doneMsg" class="hint" style="text-align:center;font-size:1rem"></p>
+    <a class="btn block" id="waBtn" target="_blank" rel="noopener" hidden>فتح واتساب لإرسال الطلب</a>
+    <button class="btn ghost block" id="doneClose" type="button">إغلاق</button>
+  </div>
+</dialog>
 
-function render(filter = "") {
-  const f = norm(filter.trim());
-  let html = "", tabs = "";
-  for (const cat of MENU) {
-    const items = cat.items.filter(([n, d]) => !f || norm(n + " " + d).includes(f));
-    if (!items.length) continue;
-    tabs += `<a href="#${cat.id}" data-id="${cat.id}">${cat.name}</a>`;
-    html += `<section id="${cat.id}"><h2>${cat.name}</h2>` + items.map(([n, d, p]) =>
-      `<article class="item"><h3>${n}</h3>${d ? `<p>${d}</p>` : ""}<span class="price">${fmt(p)}${p != null ? "<small>د.ع</small>" : ""}</span></article>`
-    ).join("") + "</section>";
-  }
-  tabsEl.innerHTML = tabs;
-  menuEl.innerHTML = html || '<p class="none">لا توجد نتائج مطابقة.</p>';
-  observe();
-}
-
-let io;
-function observe() {
-  if (io) io.disconnect();
-  io = new IntersectionObserver((entries) => {
-    for (const e of entries) {
-      if (!e.isIntersecting) continue;
-      tabsEl.querySelectorAll("a").forEach((a) => a.classList.toggle("on", a.dataset.id === e.target.id));
-      const on = tabsEl.querySelector("a.on");
-      if (on) tabsEl.scrollTo({ left: on.offsetLeft - tabsEl.clientWidth / 2 + on.clientWidth / 2, behavior: "smooth" });
-    }
-  }, { rootMargin: "-130px 0px -70% 0px" });
-  menuEl.querySelectorAll("section").forEach((s) => io.observe(s));
-}
-
-qEl.addEventListener("input", () => render(qEl.value));
-render();
-</script>
+<script src="js/common.js"></script>
+<script src="js/menu.js"></script>
 </body>
 </html>

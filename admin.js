@@ -1,198 +1,134 @@
-(function(){
 "use strict";
-var C = window.APP_CONFIG || {};
-var $ = function(id){ return document.getElementById(id); };
-var DAYS = ["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
-var current = C.merge(null), logoData = "";
-var DATA_IMG = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+\/=]+$/;
+(async () => {
+  const $ = (s) => document.querySelector(s), esc = App.esc;
+  let d;
+  try { d = await App.load(); } catch { d = {}; }
+  if (d.adminHash) await App.gate(d.adminHash, "لوحة المدير");
+  $("#app").hidden = false;
 
-function msg(text, ok){ var m = $("saveMsg"); m.textContent = text; m.className = "msg " + (ok ? "ok" : "err"); }
-function pad(n){ return (n < 10 ? "0" : "") + n; }
+  const DEF = { primary: "#c8102e", text: "#1a1a1a" };
+  const init = () => { d.theme = Object.assign({}, DEF, d.theme); d.wifi = d.wifi || {}; d.categories = d.categories || []; };
+  init();
 
-/* ===== ساعات العمل ===== */
-function buildHours(hours){
-  var box = $("hoursRows"); box.textContent = "";
-  DAYS.forEach(function(d,i){
-    var m = /^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/.exec(String(hours[i] || "").trim());
-    var row = document.createElement("div"); row.className = "day";
-    var lab = document.createElement("label");
-    var cb = document.createElement("input"); cb.type = "checkbox"; cb.id = "h_on_" + i; cb.checked = !!m;
-    lab.appendChild(cb); lab.appendChild(document.createTextNode(d));
-    var o = document.createElement("input"); o.type = "time"; o.id = "h_o_" + i; o.setAttribute("aria-label", "فتح " + d);
-    var c = document.createElement("input"); c.type = "time"; c.id = "h_c_" + i; c.setAttribute("aria-label", "إغلاق " + d);
-    if(m){ o.value = pad(+m[1]) + ":" + m[2]; c.value = pad(+m[3]) + ":" + m[4]; }
-    function sync(){ o.disabled = c.disabled = !cb.checked; }
-    cb.addEventListener("change", sync); sync();
-    row.appendChild(lab); row.appendChild(o); row.appendChild(c); box.appendChild(row);
-  });
-}
-function collectHours(errors){
-  var out = [];
-  DAYS.forEach(function(d,i){
-    if(!$("h_on_" + i).checked){ out.push(""); return; }
-    var o = $("h_o_" + i).value, c = $("h_c_" + i).value;
-    if(!o || !c){ errors.push("أدخل وقت الفتح والإغلاق ليوم " + d); out.push(""); return; }
-    if(o === c){ errors.push("وقت الفتح والإغلاق متطابقان ليوم " + d); out.push(""); return; }
-    out.push(o + "-" + c);
-  });
-  return out;
-}
-$("copyAll").addEventListener("click", function(){
-  var on = $("h_on_0").checked, o = $("h_o_0").value, c = $("h_c_0").value;
-  for(var i = 1; i < 7; i++){
-    $("h_on_" + i).checked = on; $("h_o_" + i).value = o; $("h_c_" + i).value = c;
-    $("h_on_" + i).dispatchEvent(new Event("change"));
+  const F = [["name", "اسم المطعم"], ["tagline", "العبارة التعريفية"], ["whatsapp", "رقم واتساب (دولي، مثل +9647700000000)", 1], ["phone", "رقم الاتصال", 1],
+    ["map", "رابط خرائط Google", 1], ["instagram", "إنستغرام", 1], ["facebook", "فيسبوك", 1], ["tiktok", "تيك توك", 1],
+    ["minOrder", "الحد الأدنى للطلب السفري (د.ع)", 0, "number"], ["ordersUrl", "رابط قاعدة الطلبات (Firebase Realtime)", 1],
+    ["wifi.name", "اسم الواي فاي", 1], ["wifi.password", "كلمة مرور الواي فاي", 1]];
+  const get = (p) => { const v = p.split(".").reduce((o, k) => (o ? o[k] : undefined), d); return v == null ? "" : v; };
+  const set = (p, v) => { const k = p.split("."), l = k.pop(); k.reduce((o, x) => (o[x] = o[x] || {}), d)[l] = v; };
+
+  function fields() {
+    $("#fields").innerHTML = F.map(([p, t, ltr, type]) =>
+      `<label for="f_${p}">${esc(t)}</label><input id="f_${p}" data-p="${p}" type="${type || "text"}" ${type === "number" ? 'min="0" inputmode="numeric"' : ""} class="${ltr ? "ltr" : ""}" value="${esc(get(p))}" autocomplete="off">`).join("");
+    $("#cPrimary").value = d.theme.primary; $("#cText").value = d.theme.text;
+    const lp = $("#logoPrev"); lp.hidden = !d.logo; if (d.logo) lp.src = d.logo;
+    menu();
   }
-});
-
-/* ===== الشعار ===== */
-function isPath(v){ return /^[A-Za-z0-9_\-][A-Za-z0-9_\-.\/]*$/.test(v) && v.indexOf("..") === -1 && !/\/$/.test(v); }
-function setLogoPreview(){
-  var p = $("logoPrev"), v = logoData || $("f_logo").value.trim();
-  if(v && (DATA_IMG.test(v) || /^https:\/\//i.test(v) || isPath(v))){ p.src = v; p.hidden = false; }
-  else{ p.removeAttribute("src"); p.hidden = true; }
-}
-function resizeToDataUrl(file){
-  return new Promise(function(resolve, reject){
-    if(["image/jpeg","image/png","image/webp"].indexOf(file.type) === -1) return reject(new Error("نوع الصورة غير مسموح"));
-    if(file.size > 8 * 1048576) return reject(new Error("الصورة كبيرة جداً (الحد 8 ميغابايت)"));
-    var fr = new FileReader();
-    fr.onerror = function(){ reject(new Error("تعذّرت قراءة الملف")); };
-    fr.onload = function(){
-      var img = new Image();
-      img.onerror = function(){ reject(new Error("الصورة غير صالحة")); };
-      img.onload = function(){
-        var S = 256, cv = document.createElement("canvas"); cv.width = cv.height = S;
-        var side = Math.min(img.width, img.height), sx = (img.width - side) / 2, sy = (img.height - side) / 2;
-        cv.getContext("2d").drawImage(img, sx, sy, side, side, 0, 0, S, S);
-        var out = cv.toDataURL("image/webp", 0.85);
-        if(out.indexOf("data:image/webp") !== 0) out = cv.toDataURL("image/png");
-        if(out.length > 400000) return reject(new Error("الصورة بعد التصغير ما زالت كبيرة، جرّب صورة أبسط"));
-        resolve(out);
-      };
-      img.src = fr.result;
-    };
-    fr.readAsDataURL(file);
+  $("#fields").addEventListener("input", (e) => {
+    const p = e.target.dataset.p;
+    if (p) set(p, e.target.type === "number" ? Math.max(0, Number(e.target.value) || 0) : e.target.value.trim());
   });
-}
-$("f_logoFile").addEventListener("change", function(){
-  var inp = this, f = inp.files && inp.files[0]; if(!f) return;
-  resizeToDataUrl(f).then(function(url){
-    logoData = url; $("f_logo").value = ""; setLogoPreview();
-    msg("تمت معالجة الصورة. نزّل data.json لتطبيقها.", true);
-  }).catch(function(e){ msg(e.message, false); }).then(function(){ inp.value = ""; });
-});
-$("f_logo").addEventListener("input", function(){ logoData = ""; setLogoPreview(); });
-$("rmLogo").addEventListener("click", function(){ logoData = ""; $("f_logo").value = ""; setLogoPreview(); });
+  $("#cPrimary").oninput = (e) => { d.theme.primary = e.target.value; App.theme(d); };
+  $("#cText").oninput = (e) => { d.theme.text = e.target.value; App.theme(d); };
+  $("#cReset").onclick = () => { d.theme = Object.assign({}, DEF); $("#cPrimary").value = DEF.primary; $("#cText").value = DEF.text; App.theme(d); };
 
-/* ===== تعبئة النموذج ===== */
-function fill(cfg){
-  current = cfg;
-  $("f_name").value = cfg.name; $("f_tagline").value = cfg.tagline;
-  if(DATA_IMG.test(cfg.logo)){ logoData = cfg.logo; $("f_logo").value = ""; } else { logoData = ""; $("f_logo").value = cfg.logo; }
-  setLogoPreview();
-  $("f_menu").value = cfg.menu;
-  $("f_phone").value = cfg.phone; $("f_whatsapp").value = cfg.whatsapp; $("f_wamsg").value = cfg.whatsappMessage;
-  $("f_map").value = cfg.map;
-  $("f_instagram").value = cfg.instagram; $("f_facebook").value = cfg.facebook; $("f_tiktok").value = cfg.tiktok;
-  $("f_wifiName").value = cfg.wifi.name; $("f_wifiPass").value = cfg.wifi.password;
-  buildHours(cfg.hours);
-}
+  const shrink = (file, max, q) => new Promise((ok, no) => {
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return no(new Error("نوع الصورة غير مدعوم (JPG/PNG/WebP)."));
+    const r = new FileReader();
+    r.onerror = () => no(new Error("تعذّرت قراءة الملف."));
+    r.onload = () => {
+      const im = new Image();
+      im.onerror = () => no(new Error("تعذّرت قراءة الصورة."));
+      im.onload = () => {
+        const s = Math.min(1, max / Math.max(im.width, im.height)), c = document.createElement("canvas");
+        c.width = Math.round(im.width * s); c.height = Math.round(im.height * s);
+        c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+        ok(c.toDataURL("image/jpeg", q));
+      };
+      im.src = r.result;
+    };
+    r.readAsDataURL(file);
+  });
+  const say = (t, ok) => { const m = $("#msg"); m.textContent = t; m.className = "msg" + (ok ? " ok" : ""); };
 
-/* ===== التحقق والجمع ===== */
-function checkHttps(v, label, errors){
-  v = v.trim(); if(!v) return "";
-  try{
-    var u = new URL(v);
-    if(u.protocol !== "https:" || !u.hostname) throw 0;
-    return u.href;
-  }catch(e){ errors.push("رابط " + label + " غير صالح (يجب أن يبدأ بـ https://)"); return ""; }
-}
-function checkAsset(v, label, errors){
-  v = v.trim(); if(!v) return "";
-  if(isPath(v)) return v;
-  return checkHttps(v, label, errors);
-}
-function checkPhone(v, label, errors){
-  v = v.trim(); if(!v) return "";
-  var d = v.replace(/[\s\-()+]/g, "");
-  if(!/^\d{8,15}$/.test(d)){ errors.push("رقم " + label + " غير صالح، استخدم الصيغة الدولية مثل +9647700000000"); return ""; }
-  return "+" + d;
-}
-function collect(){
-  var errors = [];
-  var name = $("f_name").value.trim();
-  if(!name) errors.push("اسم المطعم مطلوب");
-  var wn = $("f_wifiName").value.trim(), wp = $("f_wifiPass").value.trim();
-  if((wn && !wp) || (!wn && wp)) errors.push("أدخل اسم شبكة الواي فاي وكلمة مرورها معاً أو اتركهما فارغين");
-  var data = {
-    name: name,
-    tagline: $("f_tagline").value.trim(),
-    logo: logoData || checkAsset($("f_logo").value, "الصورة", errors),
-    menu: checkAsset($("f_menu").value, "القائمة", errors),
-    instagram: checkHttps($("f_instagram").value, "إنستغرام", errors),
-    facebook: checkHttps($("f_facebook").value, "فيسبوك", errors),
-    tiktok: checkHttps($("f_tiktok").value, "تيك توك", errors),
-    map: checkHttps($("f_map").value, "الموقع", errors),
-    phone: checkPhone($("f_phone").value, "الاتصال", errors),
-    whatsapp: checkPhone($("f_whatsapp").value, "واتساب", errors),
-    whatsappMessage: $("f_wamsg").value.trim(),
-    wifi: {name: wn, password: wp},
-    timezone: current.timezone || "Asia/Baghdad",
-    hours: collectHours(errors)
+  $("#logoFile").onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    try { d.logo = await shrink(f, 256, 0.85); fields(); say("", 1); } catch (x) { say(x.message); }
   };
-  return {data: data, errors: errors};
-}
-function buildJson(){
-  var res = collect();
-  if(res.errors.length){ msg(res.errors[0], false); return null; }
-  return JSON.stringify(res.data, null, 2) + "\n";
-}
+  $("#logoRm").onclick = () => { d.logo = ""; fields(); };
 
-/* ===== التصدير ===== */
-$("editForm").addEventListener("submit", function(e){
-  e.preventDefault();
-  var json = buildJson(); if(!json) return;
-  var blob = new Blob([json], {type: "application/json"});
-  var url = URL.createObjectURL(blob), a = document.createElement("a");
-  a.href = url; a.download = "data.json"; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
-  msg("تم إنشاء data.json. ارفعه إلى GitHub مستبدلاً الملف القديم.", true);
-});
-function legacyCopy(text){
-  try{
-    var ta = document.createElement("textarea");
-    ta.value = text; ta.setAttribute("readonly",""); ta.style.cssText = "position:fixed;opacity:0";
-    document.body.appendChild(ta); ta.select();
-    var ok = document.execCommand("copy"); ta.remove(); return ok;
-  }catch(e){ return false; }
-}
-$("copyBtn").addEventListener("click", function(){
-  var json = buildJson(); if(!json) return;
-  var done = function(ok){ msg(ok ? "تم نسخ المحتوى. الصقه في ملف data.json على GitHub (أيقونة القلم) ثم Commit." : "تعذّر النسخ، استخدم زر التنزيل.", ok); };
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(json).then(function(){ done(true); }, function(){ done(legacyCopy(json)); });
-  }else{ done(legacyCopy(json)); }
-});
+  const uid = () => "i" + Math.random().toString(36).slice(2, 8);
+  function menu() {
+    $("#menuEd").innerHTML = d.categories.map((c, ci) =>
+      `<div class="card" style="margin-bottom:12px"><div class="rowf"><input data-ci="${ci}" data-f="name" value="${esc(c.name)}" aria-label="اسم القسم" placeholder="اسم القسم">` +
+      `<button class="btn ghost sm" type="button" data-act="delCat" data-ci="${ci}">حذف القسم</button></div>` +
+      c.items.map((i, ii) => {
+        const k = `data-ci="${ci}" data-ii="${ii}"`;
+        return `<div class="it"><div>${i.img ? `<img class="th" src="${esc(i.img)}" alt="">` : '<div class="th"></div>'}</div><div class="g">` +
+          `<input ${k} data-f="name" value="${esc(i.name)}" placeholder="اسم الوجبة" aria-label="اسم الوجبة">` +
+          `<input ${k} data-f="price" type="number" min="0" inputmode="numeric" value="${i.price == null ? "" : i.price}" placeholder="السعر (فارغ = اسأل عن السعر)" aria-label="السعر">` +
+          `<input ${k} data-f="desc" value="${esc(i.desc || "")}" placeholder="الوصف" aria-label="الوصف">` +
+          `<input ${k} data-act="img" type="file" accept="image/jpeg,image/png,image/webp" aria-label="صورة الوجبة">` +
+          `<div class="rowf">${i.img ? `<button class="btn ghost sm" type="button" data-act="rmImg" ${k}>إزالة الصورة</button>` : ""}<button class="btn ghost sm" type="button" data-act="delItem" ${k}>حذف الوجبة</button></div></div></div>`;
+      }).join("") +
+      `<button class="btn ghost sm" type="button" data-act="addItem" data-ci="${ci}" style="margin-top:10px">إضافة وجبة</button></div>`).join("");
+  }
+  const target = (el) => { const c = d.categories[el.dataset.ci]; return el.dataset.ii === undefined ? c : c.items[el.dataset.ii]; };
+  $("#menuEd").addEventListener("input", (e) => {
+    const t = e.target, f = t.dataset.f;
+    if (!f) return;
+    target(t)[f] = f === "price" ? (t.value === "" ? null : Math.max(0, Number(t.value))) : t.value;
+  });
+  $("#menuEd").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-act]"); if (!b) return;
+    const a = b.dataset.act, c = d.categories[b.dataset.ci];
+    if (a === "delCat" && confirm("حذف القسم وكل وجباته؟")) d.categories.splice(b.dataset.ci, 1);
+    else if (a === "addItem") c.items.push({ id: uid(), name: "", desc: "", price: null, img: "" });
+    else if (a === "delItem" && confirm("حذف الوجبة؟")) c.items.splice(b.dataset.ii, 1);
+    else if (a === "rmImg") c.items[b.dataset.ii].img = "";
+    else return;
+    menu();
+  });
+  $("#menuEd").addEventListener("change", async (e) => {
+    const t = e.target;
+    if (t.dataset.act !== "img" || !t.files[0]) return;
+    try { target(t).img = await shrink(t.files[0], 640, 0.72); menu(); say("", 1); } catch (x) { say(x.message); }
+  });
+  $("#addCat").onclick = () => { d.categories.push({ id: "c" + uid(), name: "قسم جديد", items: [] }); menu(); };
 
-/* ===== الاستيراد والتحميل الأولي ===== */
-$("importFile").addEventListener("change", function(){
-  var inp = this, f = inp.files && inp.files[0]; if(!f) return;
-  if(f.size > 1048576){ msg("الملف كبير جداً", false); inp.value = ""; return; }
-  var fr = new FileReader();
-  fr.onload = function(){
-    try{ fill(C.merge(JSON.parse(fr.result))); msg("تم استيراد الملف.", true); }
-    catch(e){ msg("الملف ليس JSON صالحاً", false); }
-    inp.value = "";
+  $("#importFile").onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    try { const j = JSON.parse(await f.text()); if (!j || typeof j !== "object" || Array.isArray(j)) throw 0; d = j; init(); App.theme(d); fields(); say("تم الاستيراد.", 1); }
+    catch { say("ملف JSON غير صالح."); }
   };
-  fr.readAsText(f);
-});
 
-fill(C.merge(null));
-fetch(C.DATA_URL || "data.json", {cache: "no-store"}).then(function(r){
-  if(!r.ok) throw new Error("http");
-  return r.json();
-}).then(function(d){ fill(C.merge(d)); }).catch(function(){
-  msg("تعذّر تحميل data.json الحالي. ابدأ من الصفر أو استورد ملفاً.", false);
-});
+  async function build() {
+    if (!String(d.name || "").trim()) throw new Error("اسم المطعم مطلوب.");
+    if (d.whatsapp && !/^\+?\d{8,15}$/.test(d.whatsapp)) throw new Error("رقم واتساب غير صالح.");
+    if (d.ordersUrl && !Store.base(d)) throw new Error("رابط قاعدة الطلبات يجب أن يكون https://....firebasedatabase.app");
+    const out = JSON.parse(JSON.stringify(d));
+    out.categories = out.categories.map((c) => ({ ...c, items: c.items.filter((i) => String(i.name).trim()) })).filter((c) => String(c.name).trim());
+    const ids = out.categories.flatMap((c) => c.items.map((i) => i.id));
+    if (new Set(ids).size !== ids.length) throw new Error("معرّفات الوجبات مكررة في data.json.");
+    for (const [id, key] of [["#pwC", "cashierHash"], ["#pwA", "adminHash"]]) {
+      const v = $(id).value;
+      if (!v) continue;
+      if (v.length < 8) throw new Error("كلمة السر 8 أحرف على الأقل.");
+      out[key] = await App.mk(v);
+    }
+    return JSON.stringify(out, null, 2);
+  }
+  $("#save").onclick = async () => {
+    try {
+      const j = await build(), a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([j], { type: "application/json" })); a.download = "data.json"; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000); say("تم التنزيل. ارفعه إلى المستودع.", 1);
+    } catch (x) { say(x.message); }
+  };
+  $("#copy").onclick = async () => {
+    try { await navigator.clipboard.writeText(await build()); say("تم النسخ.", 1); } catch (x) { say(x.message || "تعذّر النسخ."); }
+  };
+
+  App.theme(d);
+  fields();
 })();
