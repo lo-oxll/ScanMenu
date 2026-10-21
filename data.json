@@ -1,0 +1,16 @@
+{
+  "name": "اسم المطعم",
+  "tagline": "",
+  "logo": "",
+  "menu": "",
+  "instagram": "",
+  "facebook": "",
+  "tiktok": "",
+  "phone": "",
+  "whatsapp": "",
+  "whatsappMessage": "مرحباً، أريد الطلب من القائمة",
+  "map": "",
+  "wifi": { "name": "", "password": "" },
+  "timezone": "Asia/Baghdad",
+  "hours": ["", "", "", "", "", "", ""]
+}
