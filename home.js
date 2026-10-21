@@ -1,6 +1,6 @@
 "use strict";
 (async () => {
-  const $ = (s) => document.querySelector(s);
+  const $ = (s) => document.querySelector(s), esc = App.esc;
   let d;
   try { d = await App.load(); } catch { $("#name").textContent = "تعذّر تحميل البيانات"; return; }
   App.theme(d);
@@ -12,38 +12,7 @@
   const logo = $("#logo");
   if (d.logo) { const i = new Image(); i.alt = ""; i.src = d.logo; logo.append(i); } else logo.textContent = name.trim().charAt(0);
 
-  const digits = (v) => String(v || "").replace(/\D/g, "");
-  const L = [];
-  if (d.phone) L.push(["اتصال", "tel:+" + digits(d.phone)]);
-  if (d.whatsapp) L.push(["واتساب", "https://wa.me/" + digits(d.whatsapp) + "?text=" + encodeURIComponent(d.whatsappMessage || "")]);
-  [["الموقع", d.map], ["إنستغرام", d.instagram], ["فيسبوك", d.facebook], ["تيك توك", d.tiktok]].forEach(([t, u]) => { if (/^https:\/\//.test(u || "")) L.push([t, u]); });
-  $("#links").innerHTML = L.map(([t, u]) => `<a class="btn ghost sm" href="${App.esc(u)}" target="_blank" rel="noopener">${t}</a>`).join("");
-
-  if (d.wifi && d.wifi.name) {
-    $("#wifi").hidden = false; $("#wifiName").textContent = d.wifi.name;
-    if (d.wifi.password) $("#wifiCopy").onclick = async () => { try { await navigator.clipboard.writeText(d.wifi.password); App.toast("تم النسخ"); } catch { App.toast("تعذّر النسخ"); } };
-    else $("#wifiCopy").hidden = true;
-  }
-
-  const days = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"], hrs = d.hours || [];
-  let day = new Date().getDay(), now = 0;
-  try {
-    const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: d.timezone || "Asia/Baghdad", weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date()).map((x) => [x.type, x.value]));
-    day = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(p.weekday); now = +p.hour * 60 + +p.minute;
-  } catch { /* نستخدم توقيت الجهاز */ }
-  const rng = (i) => {
-    const h = hrs[(i + 7) % 7];
-    if (!/^\d\d:\d\d-\d\d:\d\d$/.test(h || "")) return null;
-    return h.split("-").map((t) => +t.slice(0, 2) * 60 + +t.slice(3));
-  };
-  if (hrs.length) {
-    $("#hoursBox").hidden = false;
-    $("#hours").innerHTML = days.map((n, i) => `<div class="${i === day ? "today" : ""}"><span>${n}</span><span dir="ltr">${App.esc(rng(i) ? hrs[i] : "مغلق")}</span></div>`).join("");
-    const t = rng(day), y = rng(day - 1);
-    const open = (t && (t[0] < t[1] ? now >= t[0] && now < t[1] : now >= t[0])) || (y && y[0] >= y[1] && now < y[1]);
-    const s = $("#status"); s.hidden = false; s.className = "status " + (open ? "open" : "closed"); s.textContent = open ? "مفتوح الآن" : "مغلق الآن";
-  }
-
+  // اختصار سري: 5 نقرات خلال ثانيتين = المدير، 3 نقرات = الكاشير
   let taps = 0, first = 0, timer;
   logo.addEventListener("click", () => {
     const now = Date.now();
@@ -54,7 +23,52 @@
     timer = setTimeout(() => { if (taps === 3) location.href = "cashier.html"; taps = 0; }, 700);
   });
 
-  $("#share").onclick = async () => {
-    try { if (navigator.share) await navigator.share({ title: name, url: location.href }); else { await navigator.clipboard.writeText(location.href); App.toast("تم نسخ الرابط"); } } catch { /* أُلغيت المشاركة */ }
+  // زر التواصل (يمين) والموقع (يسار)
+  const digits = (v) => String(v || "").replace(/\D/g, "");
+  const L = [];
+  if (d.phone) L.push(["اتصال", "tel:+" + digits(d.phone)]);
+  if (d.whatsapp) L.push(["واتساب", "https://wa.me/" + digits(d.whatsapp) + "?text=" + encodeURIComponent(d.whatsappMessage || "")]);
+  [["إنستغرام", d.instagram], ["فيسبوك", d.facebook], ["تيك توك", d.tiktok]].forEach(([t, u]) => { if (/^https:\/\//.test(u || "")) L.push([t, u]); });
+  if (L.length) {
+    const b = $("#contactBtn"), box = $("#contactBox");
+    box.innerHTML = L.map(([t, u]) => `<a class="btn ghost sm" href="${esc(u)}" target="_blank" rel="noopener">${t}</a>`).join("");
+    b.hidden = false;
+    b.onclick = () => { box.hidden = !box.hidden; b.setAttribute("aria-expanded", String(!box.hidden)); };
+  }
+  if (/^https:\/\//.test(d.map || "")) { const m = $("#mapBtn"); m.href = d.map; m.hidden = false; }
+
+  // الواي فاي: المتصفحات لا تستطيع الاتصال بالشبكة مباشرة، لذا ننسخ كلمة المرور ونرشد الزبون
+  if (d.wifi && d.wifi.name) {
+    const w = $("#wifi");
+    w.hidden = false; w.textContent = "الواي فاي: " + d.wifi.name + " — اضغط للاتصال";
+    w.onclick = async () => {
+      let ok = false;
+      if (d.wifi.password) { try { await navigator.clipboard.writeText(d.wifi.password); ok = true; } catch { /* لا نسخ */ } }
+      App.toast(ok ? `تم نسخ كلمة المرور. اختر شبكة "${d.wifi.name}" من إعدادات الواي فاي والصقها.` : `اختر شبكة "${d.wifi.name}" من إعدادات الواي فاي.`, 5000);
+    };
+  }
+
+  // مفتوح الآن / مغلق الآن
+  const hrs = d.hours || [];
+  let day = new Date().getDay(), now = new Date().getHours() * 60 + new Date().getMinutes();
+  try {
+    const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: d.timezone || "Asia/Baghdad", weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date()).map((x) => [x.type, x.value]));
+    day = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(p.weekday); now = +p.hour * 60 + +p.minute;
+  } catch { /* توقيت الجهاز */ }
+  const rng = (i) => {
+    const h = hrs[(i + 7) % 7];
+    if (!/^\d\d:\d\d-\d\d:\d\d$/.test(h || "")) return null;
+    return h.split("-").map((t) => +t.slice(0, 2) * 60 + +t.slice(3));
   };
+  if (hrs.length) {
+    const t = rng(day), y = rng(day - 1);
+    const open = (t && (t[0] < t[1] ? now >= t[0] && now < t[1] : now >= t[0])) || (y && y[0] >= y[1] && now < y[1]);
+    const s = $("#status"); s.hidden = false; s.className = "status " + (open ? "open" : "closed"); s.textContent = open ? "مفتوح الآن" : "مغلق الآن";
+  }
+
+  // الوجبات في الواجهة (للعرض؛ الطلب من صفحة القائمة)
+  $("#meals").innerHTML = (d.categories || []).filter((c) => c.items && c.items.length).map((c) =>
+    `<section><h2><a href="menu.html#c-${esc(c.id)}">${esc(c.name)}</a></h2>` + c.items.map((i) =>
+      `<article class="item">${i.img ? `<img class="pic" src="${esc(i.img)}" alt="${esc(i.name)}" loading="lazy" width="96" height="96">` : ""}` +
+      `<div class="info"><h3>${esc(i.name)}</h3>${i.desc ? `<p>${esc(i.desc)}</p>` : ""}<div class="row"><span class="price">${App.fmt(Number.isFinite(i.price) && i.price > 0 ? i.price : null)}</span></div></div></article>`).join("") + "</section>").join("");
 })();

@@ -22,18 +22,14 @@
   <h1 id="name">اسم المطعم</h1>
   <p class="tag" id="tagline" hidden></p>
   <a class="btn cta" href="menu.html">القائمة واطلب الآن</a>
-  <div class="status" id="status" role="status" hidden></div>
-  <div class="pills" id="links"></div>
-  <div class="card" id="wifi" hidden>
-    <small class="hint">شبكة الواي فاي</small>
-    <b id="wifiName"></b>
-    <button class="btn ghost sm" id="wifiCopy" type="button">نسخ كلمة المرور</button>
+  <div class="bar3">
+    <button class="btn ghost sm" id="contactBtn" type="button" aria-expanded="false" aria-controls="contactBox" hidden>للتواصل</button>
+    <div class="status" id="status" role="status" hidden></div>
+    <a class="btn ghost sm" id="mapBtn" target="_blank" rel="noopener" hidden>الموقع</a>
   </div>
-  <details class="card" id="hoursBox" hidden>
-    <summary>ساعات العمل</summary>
-    <div class="hours" id="hours"></div>
-  </details>
-  <button class="btn ghost" id="share" type="button">مشاركة الصفحة</button>
+  <div class="pills" id="contactBox" hidden></div>
+  <button class="btn ghost" id="wifi" type="button" hidden></button>
+  <div class="menu-list" id="meals"></div>
 </main>
 <script src="common.js"></script>
 <script src="home.js"></script>

@@ -139,4 +139,5 @@
 
   $("#q").addEventListener("input", () => render($("#q").value));
   render();
+  if (location.hash) { const t = document.getElementById(decodeURIComponent(location.hash.slice(1))); if (t) t.scrollIntoView(); }
 })();

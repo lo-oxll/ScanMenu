@@ -18,7 +18,7 @@ const App = {
     }
     if (ok(t.text)) s.setProperty("--text", t.text);
   },
-  toast(m) {
+  toast(m, ms) {
     let e = document.getElementById("toast");
     if (!e) { e = document.createElement("div"); e.id = "toast"; e.className = "toast"; e.setAttribute("role", "status"); document.body.append(e); }
     e.textContent = m; e.classList.add("show");
